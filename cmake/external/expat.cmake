@@ -6,6 +6,7 @@ ExternalProject_Add(ep_expat
         GIT_SHALLOW 1
         GIT_PROGRESS 1
         CMAKE_ARGS ${EP_CMAKE_ARGS}
+            -DBUILD_SHARED_LIBS=OFF
         SOURCE_SUBDIR expat
         USES_TERMINAL_DOWNLOAD true
         USES_TERMINAL_BUILD true

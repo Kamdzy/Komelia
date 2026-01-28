@@ -7,9 +7,10 @@ ExternalProject_Add(ep_vips
         GIT_PROGRESS 1
         DEPENDS ep_expat ep_glib ep_heif ep_highway ep_jxl ep_spng ep_webp ep_tiff ep_jpeg-turbo ep_lcms2 ep_exif
         UPDATE_DISCONNECTED True
-        PATCH_COMMAND git apply ${CMAKE_CURRENT_LIST_DIR}/patches/vips_thumbnail_resampling_kernel.patch
+        PATCH_COMMAND git apply ${CMAKE_CURRENT_LIST_DIR}/patches/vips_thumbnail_resampling_kernel.patch && git apply ${CMAKE_CURRENT_LIST_DIR}/patches/vips_shared_glib2.patch
         CONFIGURE_COMMAND
             ${Meson_EXECUTABLE} setup ${EP_MESON_ARGS}
+            --default-library shared
             -Dexif=enabled
             -Dhighway=enabled
             -Djpeg-xl=enabled

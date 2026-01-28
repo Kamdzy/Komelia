@@ -8,6 +8,7 @@ ExternalProject_Add(ep_de265
         CMAKE_ARGS
             ${EP_CMAKE_ARGS}
             -DENABLE_SDL=OFF
+            -DBUILD_SHARED_LIBS=OFF
         USES_TERMINAL_DOWNLOAD true
         USES_TERMINAL_BUILD true
 )

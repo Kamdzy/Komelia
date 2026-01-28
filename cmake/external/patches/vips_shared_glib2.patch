@@ -1,0 +1,17 @@
+diff --git a/meson.build b/meson.build
+index 5057fecc9..65711b63d 100644
+--- a/meson.build
++++ b/meson.build
+@@ -68,9 +68,9 @@ if fuzzing_engine == 'libfuzzer'
+     add_project_arguments(cc.first_supported_argument(fuzzer_args), language: ['cpp', 'c'])
+ endif
+ 
+-glib_dep = dependency('glib-2.0', version: '>=2.52')
+-gio_dep = dependency('gio-2.0')
+-gobject_dep = dependency('gobject-2.0')
++glib_dep = dependency('glib-2.0', static: false, version: '>=2.52')
++gio_dep = dependency('gio-2.0', static: false)
++gobject_dep = dependency('gobject-2.0', static: false)
+ gmodule_dep = dependency('gmodule-no-export-2.0', required: get_option('modules'))
+ expat_dep = dependency('expat')
+ thread_dep = dependency('threads')

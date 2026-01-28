@@ -9,6 +9,7 @@ ExternalProject_Add(ep_webp
             ${EP_CMAKE_ARGS}
             -DWEBP_BUILD_VWEBP=OFF
             -DWEBP_LINK_STATIC=ON
+            -DBUILD_SHARED_LIBS=OFF
         USES_TERMINAL_DOWNLOAD true
         USES_TERMINAL_BUILD true
 )

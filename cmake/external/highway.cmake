@@ -10,6 +10,7 @@ ExternalProject_Add(ep_highway
             -DHWY_ENABLE_TESTS=OFF
             -DHWY_ENABLE_CONTRIB=OFF
             -DHWY_ENABLE_EXAMPLES=OFF
+            -DBUILD_SHARED_LIBS=OFF
         USES_TERMINAL_DOWNLOAD true
         USES_TERMINAL_BUILD true
 )

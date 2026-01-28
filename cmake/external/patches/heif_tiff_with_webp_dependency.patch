@@ -1,0 +1,12 @@
+diff --git a/heifio/CMakeLists.txt b/heifio/CMakeLists.txt
+index 920eeca5..14cd4428 100644
+--- a/heifio/CMakeLists.txt
++++ b/heifio/CMakeLists.txt
+@@ -27,6 +27,7 @@ target_compile_definitions(heifio
+ 
+ find_package(TIFF)
+ if (TIFF_FOUND)
++    find_package(WebP)
+     target_sources(heifio PRIVATE decoder_tiff.cc decoder_tiff.h encoder_tiff.h encoder_tiff.cc)
+     target_link_libraries(heifio PRIVATE TIFF::TIFF)
+     target_compile_definitions(heifio PUBLIC HAVE_LIBTIFF=1)

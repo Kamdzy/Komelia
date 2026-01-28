@@ -7,7 +7,10 @@ ExternalProject_Add(ep_exif
         GIT_PROGRESS 1
         DEPENDS ep_zlib
         CONFIGURE_COMMAND
-           cd <SOURCE_DIR> && autoreconf -i && ./configure ${HOST_FLAG} --prefix ${CMAKE_BINARY_DIR}/sysroot
+           cd <SOURCE_DIR> && autoreconf -i && ./configure ${HOST_FLAG}
+            --disable-shared
+            --with-pic
+            --prefix ${CMAKE_BINARY_DIR}/sysroot
         BUILD_COMMAND ${Make_EXECUTABLE} all
         INSTALL_COMMAND ${Make_EXECUTABLE} install
         BUILD_IN_SOURCE true

@@ -9,6 +9,9 @@ ExternalProject_Add(ep_spng
         CMAKE_ARGS
             ${EP_CMAKE_ARGS}
             -DZLIB_ROOT:STRING=${CMAKE_BINARY_DIR}/sysroot
+            -DBUILD_SHARED_LIBS=OFF
+            -DPNG_STATIC=ON
+            -DPNG_SHARED=OFF
         USES_TERMINAL_DOWNLOAD true
         USES_TERMINAL_BUILD true
 )

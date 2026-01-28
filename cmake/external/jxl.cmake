@@ -13,7 +13,9 @@ set(JXL_ARGS ${EP_CMAKE_ARGS}
         -DJPEGXL_ENABLE_BENCHMARK=OFF
         -DJPEGXL_ENABLE_TOOLS=OFF
         -DJPEGXL_ENABLE_DEVTOOLS=OFF
-        -DJPEGXL_ENABLE_JPEGLI=OFF)
+        -DJPEGXL_ENABLE_JPEGLI=OFF
+        -DBUILD_SHARED_LIBS=OFF
+        )
 
 # fails when building with android clang toolchain
 # for some reason it tries to find hwy test headers but we don't build them
@@ -23,8 +25,8 @@ endif ()
 
 ExternalProject_Add(ep_jxl
         GIT_REPOSITORY https://github.com/libjxl/libjxl
-        GIT_TAG v0.11.0
-        GIT_SHALLOW 1
+        GIT_TAG 1caf1cdbd47806ea9774be145be33b0e16f8bad7
+#        GIT_SHALLOW 1
         GIT_PROGRESS 1
         DEPENDS ep_highway ep_brotli
         CMAKE_ARGS ${JXL_ARGS}

@@ -5,7 +5,9 @@ ExternalProject_Add(ep_heif
         GIT_TAG v1.21.0
         GIT_SHALLOW 1
         GIT_PROGRESS 1
-        DEPENDS ep_dav1d ep_de265 ep_zlib ep_brotli
+        DEPENDS ep_dav1d ep_de265 ep_zlib ep_brotli ep_tiff
+        UPDATE_DISCONNECTED True
+        PATCH_COMMAND git apply ${CMAKE_CURRENT_LIST_DIR}/patches/heif_tiff_with_webp_dependency.patch
         CMAKE_ARGS ${EP_CMAKE_ARGS}
             -DWITH_DAV1D=ON
             -DWITH_LIBDE265=ON
@@ -25,6 +27,7 @@ ExternalProject_Add(ep_heif
             -DWITH_OpenJPEG_DECODER=OFF
             -DWITH_OpenJPEG_ENCODER=OFF
             -DWITH_EXAMPLES=OFF
+            -DBUILD_SHARED_LIBS=OFF
             --preset=release
         USES_TERMINAL_DOWNLOAD true
         USES_TERMINAL_BUILD true

@@ -54,7 +54,6 @@ val linuxCommonLibs = setOf(
     "libffi.so",
     "libgio-2.0.so",
     "libglib-2.0.so",
-    "libgmodule-2.0.so",
     "libgobject-2.0.so",
     "libheif.so",
     "libhwy.so",

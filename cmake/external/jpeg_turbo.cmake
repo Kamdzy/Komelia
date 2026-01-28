@@ -7,6 +7,9 @@ ExternalProject_Add(ep_jpeg-turbo
         GIT_PROGRESS 1
         CMAKE_ARGS
             ${EP_CMAKE_ARGS}
+            -DBUILD_SHARED_LIBS=OFF
+            -DENABLE_SHARED=FALSE
+            -DENABLE_STATIC=TRUE
         USES_TERMINAL_DOWNLOAD true
         USES_TERMINAL_BUILD true
 )

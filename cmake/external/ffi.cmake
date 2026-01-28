@@ -10,6 +10,8 @@ ExternalProject_Add(ep_ffi
             --disable-exec-static-tramp
             --disable-multi-os-directory
             --disable-static --enable-pax_emutramp
+            --disable-shared
+            --with-pic
             --prefix ${CMAKE_BINARY_DIR}/sysroot
         BUILD_COMMAND ${Make_EXECUTABLE}
         INSTALL_COMMAND ${Make_EXECUTABLE} install
