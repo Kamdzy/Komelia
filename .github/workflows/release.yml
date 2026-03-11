@@ -76,23 +76,46 @@ jobs:
           sed -i "s/^app-version = .*/app-version = \"$VERSION\"/" \
             gradle/libs.versions.toml
 
-      # The android.Dockerfile sets up the full NDK/SDK toolchain.
-      # The container entrypoint accepts the target arch as $1.
-      - name: Build Android Docker image
-        run: docker build -t komelia-android . -f cmake/android.Dockerfile
+      # Enable BuildKit so --cache-from / --cache-to flags work.
+      - uses: docker/setup-buildx-action@v3
+
+      # Cache Docker image layers in GitHub Actions cache (scoped per platform).
+      # On a cache hit the image build completes in seconds instead of minutes.
+      - name: Build Android Docker image (cached)
+        run: |
+          docker buildx build \
+            --cache-from type=gha,scope=komelia-android \
+            --cache-to   type=gha,scope=komelia-android,mode=max \
+            --load \
+            -t komelia-android \
+            -f cmake/android.Dockerfile \
+            .
 
       # The Docker container writes build output back into the mounted workspace.
       # Without open permissions the container user can't create directories there.
       - name: Grant workspace write permissions for Docker
         run: sudo chmod -R 777 "${{ github.workspace }}"
 
+      # The CMake superbuild downloads and compiles external libraries from source.
+      # Individual downloads can fail transiently, so retry each arch up to 3 times.
       - name: Build native libs for all architectures
         run: |
+          cmake_build() {
+            local arch=$1 attempt
+            for attempt in 1 2 3; do
+              echo "::group::Native build – $arch (attempt $attempt)"
+              docker run --rm -v "${{ github.workspace }}:/build" \
+                komelia-android "$arch" \
+                && echo "::endgroup::" && return 0
+              echo "::endgroup::"
+              [ $attempt -lt 3 ] \
+                && echo "Attempt $attempt failed – retrying in 60s..." \
+                && sleep 60 \
+                || { echo "All attempts failed for $arch"; return 1; }
+            done
+          }
           for arch in aarch64 armv7a x86_64 x86; do
-            echo "::group::Native build – $arch"
-            docker run --rm -v "${{ github.workspace }}:/build" \
-              komelia-android "$arch"
-            echo "::endgroup::"
+            cmake_build "$arch"
           done
 
       - name: Copy JNI libs
@@ -153,15 +176,31 @@ jobs:
           sed -i "s/^app-version = .*/app-version = \"$VERSION\"/" \
             gradle/libs.versions.toml
 
-      - name: Build Linux Docker image
-        run: docker build -t komelia-linux . -f cmake/linux-x86_64.Dockerfile
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build Linux Docker image (cached)
+        run: |
+          docker buildx build \
+            --cache-from type=gha,scope=komelia-linux \
+            --cache-to   type=gha,scope=komelia-linux,mode=max \
+            --load \
+            -t komelia-linux \
+            -f cmake/linux-x86_64.Dockerfile \
+            .
 
       - name: Grant workspace write permissions for Docker
         run: sudo chmod -R 777 "${{ github.workspace }}"
 
       - name: Build native libs
         run: |
-          docker run --rm -v "${{ github.workspace }}:/build" komelia-linux
+          for attempt in 1 2 3; do
+            docker run --rm -v "${{ github.workspace }}:/build" komelia-linux \
+              && break
+            [ $attempt -lt 3 ] \
+              && echo "Attempt $attempt failed – retrying in 60s..." \
+              && sleep 60 \
+              || { echo "All attempts failed"; exit 1; }
+          done
 
       - name: Copy JNI libs
         run: ./gradlew --no-daemon linux-x86_64_copyJniLibs
@@ -198,14 +237,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Windows Docker image
-        run: docker build -t komelia-windows . -f cmake/windows-x86_64.Dockerfile
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build Windows Docker image (cached)
+        run: |
+          docker buildx build \
+            --cache-from type=gha,scope=komelia-windows \
+            --cache-to   type=gha,scope=komelia-windows,mode=max \
+            --load \
+            -t komelia-windows \
+            -f cmake/windows-x86_64.Dockerfile \
+            .
 
       - name: Grant workspace write permissions for Docker
         run: sudo chmod -R 777 "${{ github.workspace }}"
 
       - name: Build Windows native libs
-        run: docker run --rm -v "${{ github.workspace }}:/build" komelia-windows
+        run: |
+          for attempt in 1 2 3; do
+            docker run --rm -v "${{ github.workspace }}:/build" komelia-windows \
+              && break
+            [ $attempt -lt 3 ] \
+              && echo "Attempt $attempt failed – retrying in 60s..." \
+              && sleep 60 \
+              || { echo "All attempts failed"; exit 1; }
+          done
 
       # Upload the entire sysroot bin dir; the Gradle copy tasks source from here.
       - uses: actions/upload-artifact@v4
