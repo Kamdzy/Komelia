@@ -22,6 +22,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          submodules: recursive
+        with:
           fetch-depth: 0   # need full history for git tag enumeration
 
       - name: Bump patch version
@@ -60,6 +62,8 @@ jobs:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - uses: actions/setup-java@v4
         with:
@@ -96,26 +100,13 @@ jobs:
       - name: Grant workspace write permissions for Docker
         run: sudo chmod -R 777 "${{ github.workspace }}"
 
-      # The CMake superbuild downloads and compiles external libraries from source.
-      # Individual downloads can fail transiently, so retry each arch up to 3 times.
       - name: Build native libs for all architectures
         run: |
-          cmake_build() {
-            local arch=$1 attempt
-            for attempt in 1 2 3; do
-              echo "::group::Native build – $arch (attempt $attempt)"
-              docker run --rm -v "${{ github.workspace }}:/build" \
-                komelia-android "$arch" \
-                && echo "::endgroup::" && return 0
-              echo "::endgroup::"
-              [ $attempt -lt 3 ] \
-                && echo "Attempt $attempt failed – retrying in 60s..." \
-                && sleep 60 \
-                || { echo "All attempts failed for $arch"; return 1; }
-            done
-          }
           for arch in aarch64 armv7a x86_64 x86; do
-            cmake_build "$arch"
+            echo "::group::Native build – $arch"
+            docker run --rm -v "${{ github.workspace }}:/build" \
+              komelia-android "$arch"
+            echo "::endgroup::"
           done
 
       - name: Copy JNI libs
@@ -160,6 +151,8 @@ jobs:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - uses: actions/setup-java@v4
         with:
@@ -193,14 +186,7 @@ jobs:
 
       - name: Build native libs
         run: |
-          for attempt in 1 2 3; do
-            docker run --rm -v "${{ github.workspace }}:/build" komelia-linux \
-              && break
-            [ $attempt -lt 3 ] \
-              && echo "Attempt $attempt failed – retrying in 60s..." \
-              && sleep 60 \
-              || { echo "All attempts failed"; exit 1; }
-          done
+          docker run --rm -v "${{ github.workspace }}:/build" komelia-linux
 
       - name: Copy JNI libs
         run: ./gradlew --no-daemon linux-x86_64_copyJniLibs
@@ -236,6 +222,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - uses: docker/setup-buildx-action@v3
 
@@ -254,14 +242,7 @@ jobs:
 
       - name: Build Windows native libs
         run: |
-          for attempt in 1 2 3; do
-            docker run --rm -v "${{ github.workspace }}:/build" komelia-windows \
-              && break
-            [ $attempt -lt 3 ] \
-              && echo "Attempt $attempt failed – retrying in 60s..." \
-              && sleep 60 \
-              || { echo "All attempts failed"; exit 1; }
-          done
+          docker run --rm -v "${{ github.workspace }}:/build" komelia-windows
 
       # Upload the entire sysroot bin dir; the Gradle copy tasks source from here.
       - uses: actions/upload-artifact@v4
@@ -282,6 +263,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - uses: actions/setup-java@v4
         with:
@@ -346,6 +329,8 @@ jobs:
       TAG:     ${{ needs.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4

@@ -1,7 +1,10 @@
 include(ExternalProject)
 
 ExternalProject_Add(ep_tiff
-        URL http://download.osgeo.org/libtiff/tiff-4.7.1.tar.gz
+        GIT_REPOSITORY https://gitlab.com/libtiff/libtiff.git
+        GIT_TAG v4.7.1
+        GIT_SHALLOW 1
+        GIT_PROGRESS 1
         DEPENDS ep_zlib ep_jxl ep_webp
         CMAKE_ARGS
             ${EP_CMAKE_ARGS}
