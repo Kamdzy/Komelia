@@ -1,0 +1,367 @@
+name: Build and Release
+
+# Runs on every push to main. Computes the next patch version from the
+# most recent semver tag (or falls back to the version in libs.versions.toml),
+# builds all platform artifacts in parallel, then creates a GitHub Release.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ─── 1. Determine the next version ──────────────────────────────────────────
+  version:
+    name: Compute next version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      tag:     ${{ steps.bump.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need full history for git tag enumeration
+
+      - name: Bump patch version
+        id: bump
+        run: |
+          # Find latest tag that matches vX.Y.Z or X.Y.Z; fall back to the
+          # version stored in the version catalog if no tags exist yet.
+          LAST_TAG=$(git tag --sort=-version:refname \
+                       | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' \
+                       | head -n1)
+
+          if [ -z "$LAST_TAG" ]; then
+            BASE=$(grep '^app-version' gradle/libs.versions.toml \
+                     | sed 's/.*= *"\(.*\)"/\1/')
+            echo "No semver tags found; seeding from libs.versions.toml: $BASE"
+          else
+            BASE="${LAST_TAG#v}"
+            echo "Latest tag: $LAST_TAG → base version: $BASE"
+          fi
+
+          MAJOR=$(echo "$BASE" | cut -d. -f1)
+          MINOR=$(echo "$BASE" | cut -d. -f2)
+          PATCH=$(echo "$BASE" | cut -d. -f3)
+          NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$NEW_VERSION"    >> "$GITHUB_OUTPUT"
+          echo "Next version: $NEW_VERSION"
+
+  # ─── 2a. Android universal APK ───────────────────────────────────────────────
+  build-android:
+    name: Build Android APK
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Bump version in libs.versions.toml
+        run: |
+          sed -i "s/^app-version = .*/app-version = \"$VERSION\"/" \
+            gradle/libs.versions.toml
+
+      # The android.Dockerfile sets up the full NDK/SDK toolchain.
+      # The container entrypoint accepts the target arch as $1.
+      - name: Build Android Docker image
+        run: docker build -t komelia-android . -f cmake/android.Dockerfile
+
+      - name: Build native libs for all architectures
+        run: |
+          for arch in aarch64 armv7a x86_64 x86; do
+            echo "::group::Native build – $arch"
+            docker run --rm -v "${{ github.workspace }}:/build" \
+              komelia-android "$arch"
+            echo "::endgroup::"
+          done
+
+      - name: Copy JNI libs
+        run: |
+          ./gradlew --no-daemon \
+            android-aarch64_copyJniLibs \
+            android-armv7a_copyJniLibs  \
+            android-x86_64_copyJniLibs  \
+            android-x86_copyJniLibs
+
+      - name: Build epub reader WebUI
+        run: ./gradlew --no-daemon buildWebui
+
+      - name: Assemble release APK
+        # Signing is optional: set the four ANDROID_* secrets in repo settings
+        # to produce a signed APK. Without them the APK is left unsigned.
+        run: ./gradlew --no-daemon :komelia-app:assembleRelease
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS:       ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD:    ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_STORE_PASSWORD:  ${{ secrets.ANDROID_STORE_PASSWORD }}
+
+      - name: Stage APK
+        run: |
+          APK=$(find komelia-app/build/outputs/apk/release -name "*.apk" \
+                  | head -n1)
+          cp "$APK" "Komelia-${VERSION}-android-universal.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: Komelia-${{ env.VERSION }}-android-universal.apk
+          retention-days: 1
+
+  # ─── 2b. Linux deb + jar ─────────────────────────────────────────────────────
+  build-linux:
+    name: Build Linux artifacts
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Bump version in libs.versions.toml
+        run: |
+          sed -i "s/^app-version = .*/app-version = \"$VERSION\"/" \
+            gradle/libs.versions.toml
+
+      - name: Build Linux Docker image
+        run: docker build -t komelia-linux . -f cmake/linux-x86_64.Dockerfile
+
+      - name: Build native libs
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/build" komelia-linux
+
+      - name: Copy JNI libs
+        run: ./gradlew --no-daemon linux-x86_64_copyJniLibs
+
+      - name: Build epub reader WebUI
+        run: ./gradlew --no-daemon buildWebui
+
+      - name: Package deb and uber-jar
+        run: |
+          ./gradlew --no-daemon \
+            :komelia-app:packageReleaseDeb \
+            :komelia-app:packageReleaseUberJarForCurrentOS
+
+      - name: Stage artifacts
+        run: |
+          cp komelia-app/build/compose/binaries/main-release/deb/*.deb \
+             "Komelia-${VERSION}-linux-x64.deb"
+          cp komelia-app/build/compose/jars/*.jar \
+             "Komelia-${VERSION}-linux-x64.jar"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: |
+            Komelia-${{ env.VERSION }}-linux-x64.deb
+            Komelia-${{ env.VERSION }}-linux-x64.jar
+          retention-days: 1
+
+  # ─── 2c. Windows native DLLs (cross-compiled on Linux via mingw) ─────────────
+  build-windows-native:
+    name: Cross-compile Windows native libs
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Windows Docker image
+        run: |
+          docker build -t komelia-windows . -f cmake/windows-x86_64.Dockerfile
+
+      - name: Build Windows native libs
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/build" komelia-windows
+
+      # Upload the entire sysroot bin dir; the Gradle copy tasks source from here.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-native-libs
+          path: cmake/build-w64/sysroot/bin/
+          retention-days: 1
+
+  # ─── 2d. Windows MSI (must run on a Windows runner for jpackage/WiX) ─────────
+  build-windows-msi:
+    name: Build Windows MSI
+    needs: [version, build-windows-native]
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Bump version in libs.versions.toml
+        run: |
+          sed -i "s/^app-version = .*/app-version = \"$VERSION\"/" \
+            gradle/libs.versions.toml
+
+      - name: Download Windows native libs
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-native-libs
+          # Restore to the exact path the Gradle copy tasks read from
+          path: cmake/build-w64/sysroot/bin/
+
+      # Create the mingw fallback path so Gradle's secondary from() doesn't fail
+      # when running outside Linux (the DLLs are already in sysroot/bin from Docker).
+      - name: Create mingw stub path
+        run: mkdir -p /usr/x86_64-w64-mingw32/bin
+
+      - name: Copy JNI libs to resources directories
+        run: |
+          ./gradlew --no-daemon \
+            windows-x86_64_copyJniLibs \
+            windows-x86_64_copyJniLibsComposeResources
+
+      - name: Build epub reader WebUI
+        run: ./gradlew --no-daemon buildWebui
+
+      - name: Package MSI
+        run: ./gradlew --no-daemon :komelia-app:packageReleaseMsi
+
+      - name: Stage artifact
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem `
+            -Path "komelia-app/build/compose/binaries/main-release/msi" `
+            -Filter "*.msi" | Select-Object -First 1
+          Copy-Item $msi.FullName "Komelia-$env:VERSION-windows-x64.msi"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-msi
+          path: Komelia-${{ env.VERSION }}-windows-x64.msi
+          retention-days: 1
+
+  # ─── 3. Create GitHub Release ─────────────────────────────────────────────────
+  release:
+    name: Create GitHub Release
+    needs: [version, build-android, build-linux, build-windows-msi]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      TAG:     ${{ needs.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          # Flatten all artifact subdirectories into a single dist/ folder
+          merge-multiple: true
+          path: dist/
+
+      - name: Generate SHA-256 checksums
+        working-directory: dist
+        run: |
+          sha256sum \
+            "Komelia-${VERSION}-android-universal.apk" \
+            "Komelia-${VERSION}-linux-x64.deb"         \
+            "Komelia-${VERSION}-linux-x64.jar"         \
+            "Komelia-${VERSION}-windows-x64.msi"       \
+            > sha256sums.txt
+          echo "Checksums:"
+          cat sha256sums.txt
+
+      - name: Read checksums for release body
+        id: checksums
+        run: echo "content<<EOF"$'\n'"$(cat dist/sha256sums.txt)"$'\n'"EOF" \
+               >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name:             ${{ env.TAG }}
+          name:                 Komelia ${{ env.TAG }}
+          draft:                false
+          prerelease:           false
+          generate_release_notes: true
+          body: |
+            ## SHA-256 Checksums
+
+            ```
+            ${{ steps.checksums.outputs.content }}
+            ```
+          files: |
+            dist/Komelia-${{ env.VERSION }}-android-universal.apk
+            dist/Komelia-${{ env.VERSION }}-linux-x64.deb
+            dist/Komelia-${{ env.VERSION }}-linux-x64.jar
+            dist/Komelia-${{ env.VERSION }}-windows-x64.msi
+            dist/sha256sums.txt
+
+      - name: Send Discord notification on successful release
+        if: success()
+        run: |
+          CHECKSUMS=$(cat dist/sha256sums.txt)
+          curl -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"🚀 New Komelia Release: ${{ env.TAG }}\",
+                \"description\": \"A new release of Komelia has been built and published.\",
+                \"url\": \"${{ steps.create_release.outputs.url }}\",
+                \"color\": 3066993,
+                \"fields\": [
+                  {
+                    \"name\": \"Release Tag\",
+                    \"value\": \"[${{ env.TAG }}](${{ steps.create_release.outputs.url }})\",
+                    \"inline\": true
+                  },
+                  {
+                    \"name\": \"Workflow Run\",
+                    \"value\": \"[View Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\",
+                    \"inline\": true
+                  },
+                  {
+                    \"name\": \"Downloads\",
+                    \"value\": \"[Android APK](${{ steps.create_release.outputs.url }}) · [Linux deb](${{ steps.create_release.outputs.url }}) · [Linux jar](${{ steps.create_release.outputs.url }}) · [Windows MSI](${{ steps.create_release.outputs.url }})\",
+                    \"inline\": false
+                  },
+                  {
+                    \"name\": \"SHA-256 Checksums\",
+                    \"value\": \"\`\`\`\n${CHECKSUMS}\n\`\`\`\",
+                    \"inline\": false
+                  }
+                ],
+                \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+              }]
+            }" \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}
