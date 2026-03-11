@@ -81,6 +81,11 @@ jobs:
       - name: Build Android Docker image
         run: docker build -t komelia-android . -f cmake/android.Dockerfile
 
+      # The Docker container writes build output back into the mounted workspace.
+      # Without open permissions the container user can't create directories there.
+      - name: Grant workspace write permissions for Docker
+        run: sudo chmod -R 777 "${{ github.workspace }}"
+
       - name: Build native libs for all architectures
         run: |
           for arch in aarch64 armv7a x86_64 x86; do
@@ -151,6 +156,9 @@ jobs:
       - name: Build Linux Docker image
         run: docker build -t komelia-linux . -f cmake/linux-x86_64.Dockerfile
 
+      - name: Grant workspace write permissions for Docker
+        run: sudo chmod -R 777 "${{ github.workspace }}"
+
       - name: Build native libs
         run: |
           docker run --rm -v "${{ github.workspace }}:/build" komelia-linux
@@ -191,12 +199,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build Windows Docker image
-        run: |
-          docker build -t komelia-windows . -f cmake/windows-x86_64.Dockerfile
+        run: docker build -t komelia-windows . -f cmake/windows-x86_64.Dockerfile
+
+      - name: Grant workspace write permissions for Docker
+        run: sudo chmod -R 777 "${{ github.workspace }}"
 
       - name: Build Windows native libs
-        run: |
-          docker run --rm -v "${{ github.workspace }}:/build" komelia-windows
+        run: docker run --rm -v "${{ github.workspace }}:/build" komelia-windows
 
       # Upload the entire sysroot bin dir; the Gradle copy tasks source from here.
       - uses: actions/upload-artifact@v4
