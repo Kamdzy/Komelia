@@ -248,8 +248,8 @@ class DesktopAppModule(
             }
             install(HttpTimeout) {
                 requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
-                connectTimeoutMillis = 30_000
-                socketTimeoutMillis = 30_000
+                connectTimeoutMillis = 600_000
+                socketTimeoutMillis = 600_000
             }
         }
 
