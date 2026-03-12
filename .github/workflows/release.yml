@@ -294,7 +294,7 @@ jobs:
 
       - name: Copy JNI libs to resources directories
         run: |
-          ./gradlew --no-daemon \
+          ./gradlew --no-daemon --no-configuration-cache \
             windows-x86_64_copyJniLibs \
             windows-x86_64_copyJniLibsComposeResources
 
