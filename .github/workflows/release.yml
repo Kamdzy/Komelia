@@ -73,7 +73,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
 
       - name: Bump version in libs.versions.toml
         run: |
@@ -163,7 +162,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
 
       - name: Bump version in libs.versions.toml
         run: |
@@ -276,7 +274,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
 
       - name: Bump version in libs.versions.toml
         run: |
