@@ -265,6 +265,14 @@ jobs:
         with:
           submodules: recursive
 
+      # Install Java 17 first so Gradle's toolchain auto-detection can find it
+      # (the project uses jvmToolchain(17) for compilation), then install Java 21
+      # as the default runner JVM so atomicfu can load filekit's Java-21 classes.
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+
       - uses: actions/setup-java@v4
         with:
           java-version: '21'
