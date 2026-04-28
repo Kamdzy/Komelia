@@ -103,8 +103,12 @@ jobs:
         run: |
           for arch in aarch64 armv7a x86_64 x86; do
             echo "::group::Native build – $arch"
-            docker run --rm -v "${{ github.workspace }}:/build" \
-              komelia-android "$arch"
+            for attempt in 1 2 3; do
+              docker run --rm -v "${{ github.workspace }}:/build" \
+                komelia-android "$arch" && break
+              echo "Attempt $attempt failed for $arch"
+              [ "$attempt" -lt 3 ] && echo "Retrying in 15s..." && sleep 15
+            done
             echo "::endgroup::"
           done
 
