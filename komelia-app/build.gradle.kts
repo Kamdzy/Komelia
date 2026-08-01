@@ -186,9 +186,15 @@ compose.desktop {
         }
 
         buildTypes.release.proguard {
-            version.set("7.8.0")
+            version.set("7.9.1")
             optimize.set(false)
             configurationFiles.from(project.file("desktop.pro"))
         }
     }
+}
+
+tasks.withType<Zip>().named {
+    it.matches(Regex("package(Release)?UberJarForCurrentOS"))
+}.configureEach {
+    exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
 }
