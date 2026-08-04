@@ -91,14 +91,23 @@ jobs:
       # Cache Docker image layers in GitHub Actions cache (scoped per platform).
       # On a cache hit the image build completes in seconds instead of minutes.
       - name: Build Android Docker image (cached)
+        # see the windows job: apt-get can be OOM-killed on a loaded runner
         run: |
-          docker buildx build \
-            --cache-from type=gha,scope=komelia-android \
-            --cache-to   type=gha,scope=komelia-android,mode=max \
-            --load \
-            -t komelia-android \
-            -f cmake/android.Dockerfile \
-            .
+          for attempt in 1 2 3; do
+            if docker buildx build \
+                 --cache-from type=gha,scope=komelia-android \
+                 --cache-to   type=gha,scope=komelia-android,mode=max \
+                 --load \
+                 -t komelia-android \
+                 -f cmake/android.Dockerfile \
+                 . ; then
+              exit 0
+            fi
+            echo "Image build attempt $attempt failed"
+            [ "$attempt" -lt 3 ] && echo "Retrying in 30s..." && sleep 30
+          done
+          echo "Image build failed after 3 attempts"
+          exit 1
 
       # The Docker container writes build output back into the mounted workspace.
       # Without open permissions the container user can't create directories there.
@@ -200,14 +209,23 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Build Linux Docker image (cached)
+        # see the windows job: apt-get can be OOM-killed on a loaded runner
         run: |
-          docker buildx build \
-            --cache-from type=gha,scope=komelia-linux \
-            --cache-to   type=gha,scope=komelia-linux,mode=max \
-            --load \
-            -t komelia-linux \
-            -f cmake/linux-x86_64.Dockerfile \
-            .
+          for attempt in 1 2 3; do
+            if docker buildx build \
+                 --cache-from type=gha,scope=komelia-linux \
+                 --cache-to   type=gha,scope=komelia-linux,mode=max \
+                 --load \
+                 -t komelia-linux \
+                 -f cmake/linux-x86_64.Dockerfile \
+                 . ; then
+              exit 0
+            fi
+            echo "Image build attempt $attempt failed"
+            [ "$attempt" -lt 3 ] && echo "Retrying in 30s..." && sleep 30
+          done
+          echo "Image build failed after 3 attempts"
+          exit 1
 
       - name: Grant workspace write permissions for Docker
         run: |
@@ -270,14 +288,25 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Build Windows Docker image (cached)
+        # apt-get in the image build has been seen to die with
+        #   ResourceExhausted: ... cannot allocate memory
+        # on a loaded runner. Retry like the native build step already does.
         run: |
-          docker buildx build \
-            --cache-from type=gha,scope=komelia-windows \
-            --cache-to   type=gha,scope=komelia-windows,mode=max \
-            --load \
-            -t komelia-windows \
-            -f cmake/windows-x86_64.Dockerfile \
-            .
+          for attempt in 1 2 3; do
+            if docker buildx build \
+                 --cache-from type=gha,scope=komelia-windows \
+                 --cache-to   type=gha,scope=komelia-windows,mode=max \
+                 --load \
+                 -t komelia-windows \
+                 -f cmake/windows-x86_64.Dockerfile \
+                 . ; then
+              exit 0
+            fi
+            echo "Image build attempt $attempt failed"
+            [ "$attempt" -lt 3 ] && echo "Retrying in 30s..." && sleep 30
+          done
+          echo "Image build failed after 3 attempts"
+          exit 1
 
       - name: Grant workspace write permissions for Docker
         run: |
