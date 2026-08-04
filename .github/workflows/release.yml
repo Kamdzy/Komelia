@@ -132,7 +132,7 @@ jobs:
       - name: Assemble release APK
         # Signing is optional: set the four ANDROID_* secrets in repo settings
         # to produce a signed APK. Without them the APK is left unsigned.
-        run: ./gradlew --no-daemon :komelia-app:assembleRelease
+        run: ./gradlew --no-daemon :komelia-app:androidApp:assembleRelease
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEY_ALIAS:       ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -141,7 +141,7 @@ jobs:
 
       - name: Stage APK
         run: |
-          APK=$(find komelia-app/build/outputs/apk/release -name "*.apk" \
+          APK=$(find komelia-app/androidApp/build/outputs/apk/release -name "*.apk" \
                   | head -n1)
           cp "$APK" "Komelia-${VERSION}-android-universal.apk"
 
@@ -212,14 +212,14 @@ jobs:
       - name: Package deb and uber-jar
         run: |
           ./gradlew --no-daemon \
-            :komelia-app:packageReleaseDeb \
-            :komelia-app:packageReleaseUberJarForCurrentOS
+            :komelia-app:desktopApp:packageReleaseDeb \
+            :komelia-app:desktopApp:packageReleaseUberJarForCurrentOS
 
       - name: Stage artifacts
         run: |
-          cp komelia-app/build/compose/binaries/main-release/deb/*.deb \
+          cp komelia-app/desktopApp/build/compose/binaries/main-release/deb/*.deb \
              "Komelia-${VERSION}-linux-x64.deb"
-          cp komelia-app/build/compose/jars/*.jar \
+          cp komelia-app/desktopApp/build/compose/jars/*.jar \
              "Komelia-${VERSION}-linux-x64.jar"
 
       - uses: actions/upload-artifact@v4
@@ -332,13 +332,13 @@ jobs:
         run: ./gradlew --no-daemon buildWebui
 
       - name: Package MSI
-        run: ./gradlew --no-daemon :komelia-app:packageReleaseMsi
+        run: ./gradlew --no-daemon :komelia-app:desktopApp:packageReleaseMsi
 
       - name: Stage artifact
         shell: pwsh
         run: |
           $msi = Get-ChildItem `
-            -Path "komelia-app/build/compose/binaries/main-release/msi" `
+            -Path "komelia-app/desktopApp/build/compose/binaries/main-release/msi" `
             -Filter "*.msi" | Select-Object -First 1
           Copy-Item $msi.FullName "Komelia-$env:VERSION-windows-x64.msi"
 
