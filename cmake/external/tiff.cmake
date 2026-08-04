@@ -1,10 +1,7 @@
 include(ExternalProject)
 
 ExternalProject_Add(ep_tiff
-        GIT_REPOSITORY https://gitlab.com/libtiff/libtiff.git
-        GIT_TAG v4.7.1
-        GIT_SHALLOW 1
-        GIT_PROGRESS 1
+        SOURCE_DIR ${THIRD_PARTY_SOURCE_PATH}/libtiff
         DEPENDS ep_zlib ep_jxl ep_webp
         CMAKE_ARGS
             ${EP_CMAKE_ARGS}
