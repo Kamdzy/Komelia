@@ -103,7 +103,19 @@ jobs:
       # The Docker container writes build output back into the mounted workspace.
       # Without open permissions the container user can't create directories there.
       - name: Grant workspace write permissions for Docker
-        run: sudo chmod -R 777 "${{ github.workspace }}"
+        run: |
+          sudo chmod -R 777 "${{ github.workspace }}"
+          # The build image runs as USER 1000:1000 while the runner owns the
+          # workspace as a different uid. Upstream's cmake externals now run
+          # "git reset --hard" inside the third_party submodules for their patch
+          # steps, and git refuses to touch a repository owned by another user:
+          #   fatal: detected dubious ownership in repository at '/build/third_party/zlib-ng'
+          # safe.directory is only honoured in protected scopes, so -c and the repo
+          # config would be ignored. Point the container's global config at a file
+          # that trusts the mounted tree instead. Ownership is deliberately left
+          # alone so the runner's own git keeps working in later steps.
+          printf '[safe]\n\tdirectory = *\n' > "${{ github.workspace }}/.gitconfig-ci"
+          chmod 666 "${{ github.workspace }}/.gitconfig-ci"
 
       - name: Build native libs for all architectures
         run: |
@@ -111,6 +123,7 @@ jobs:
             echo "::group::Native build – $arch"
             for attempt in 1 2 3; do
               docker run --rm -v "${{ github.workspace }}:/build" \
+                -e GIT_CONFIG_GLOBAL=/build/.gitconfig-ci \
                 komelia-android "$arch" && break
               echo "Attempt $attempt failed for $arch"
               [ "$attempt" -lt 3 ] && echo "Retrying in 15s..." && sleep 15
@@ -197,11 +210,25 @@ jobs:
             .
 
       - name: Grant workspace write permissions for Docker
-        run: sudo chmod -R 777 "${{ github.workspace }}"
+        run: |
+          sudo chmod -R 777 "${{ github.workspace }}"
+          # The build image runs as USER 1000:1000 while the runner owns the
+          # workspace as a different uid. Upstream's cmake externals now run
+          # "git reset --hard" inside the third_party submodules for their patch
+          # steps, and git refuses to touch a repository owned by another user:
+          #   fatal: detected dubious ownership in repository at '/build/third_party/zlib-ng'
+          # safe.directory is only honoured in protected scopes, so -c and the repo
+          # config would be ignored. Point the container's global config at a file
+          # that trusts the mounted tree instead. Ownership is deliberately left
+          # alone so the runner's own git keeps working in later steps.
+          printf '[safe]\n\tdirectory = *\n' > "${{ github.workspace }}/.gitconfig-ci"
+          chmod 666 "${{ github.workspace }}/.gitconfig-ci"
 
       - name: Build native libs
         run: |
-          docker run --rm -v "${{ github.workspace }}:/build" komelia-linux
+          docker run --rm -v "${{ github.workspace }}:/build" \
+            -e GIT_CONFIG_GLOBAL=/build/.gitconfig-ci \
+            komelia-linux
 
       - name: Copy JNI libs
         run: ./gradlew --no-daemon linux-x86_64_copyJniLibs
@@ -253,11 +280,25 @@ jobs:
             .
 
       - name: Grant workspace write permissions for Docker
-        run: sudo chmod -R 777 "${{ github.workspace }}"
+        run: |
+          sudo chmod -R 777 "${{ github.workspace }}"
+          # The build image runs as USER 1000:1000 while the runner owns the
+          # workspace as a different uid. Upstream's cmake externals now run
+          # "git reset --hard" inside the third_party submodules for their patch
+          # steps, and git refuses to touch a repository owned by another user:
+          #   fatal: detected dubious ownership in repository at '/build/third_party/zlib-ng'
+          # safe.directory is only honoured in protected scopes, so -c and the repo
+          # config would be ignored. Point the container's global config at a file
+          # that trusts the mounted tree instead. Ownership is deliberately left
+          # alone so the runner's own git keeps working in later steps.
+          printf '[safe]\n\tdirectory = *\n' > "${{ github.workspace }}/.gitconfig-ci"
+          chmod 666 "${{ github.workspace }}/.gitconfig-ci"
 
       - name: Build Windows native libs
         run: |
-          docker run --rm -v "${{ github.workspace }}:/build" komelia-windows
+          docker run --rm -v "${{ github.workspace }}:/build" \
+            -e GIT_CONFIG_GLOBAL=/build/.gitconfig-ci \
+            komelia-windows
 
       # Upload the entire sysroot bin dir; the Gradle copy tasks source from here.
       - uses: actions/upload-artifact@v4
