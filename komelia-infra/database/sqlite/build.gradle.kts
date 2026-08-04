@@ -47,8 +47,10 @@ kotlin {
             implementation(libs.exposed.kotlin.datetime)
             implementation(libs.hikariCP)
             implementation(libs.flyway.core)
-//            implementation(libs.sqlite.xerial.jdbc)
-            implementation(files("sqlite-jdbc-3.51.3.0-linux.jar"))
+            // upstream swapped this for a local files("sqlite-jdbc-3.51.3.0-linux.jar")
+            // that is not committed, which leaves org.sqlite off the compile classpath
+            // anywhere but their machine
+            implementation(libs.sqlite.xerial.jdbc)
         }
     }
 }
