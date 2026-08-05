@@ -91,7 +91,8 @@ object VipsSharedLibraries {
         "libjxl_threads",
         "libjxl",
         "libpng16",
-        "libtiff",
+        // windows ships the soname-suffixed libtiff-6.dll, there is no unversioned alias
+        "libtiff-6",
         "libheif",
         windowsBundledLibVipsName,
         "libkomelia_vips",

@@ -113,7 +113,9 @@ val windowsLibs = setOf(
     "libjxl_threads.dll",
     "libsharpyuv.dll",
     "libpng16.dll",
-    "libtiff.dll",
+    // libtiff links its dll with the soname suffix, like libjpeg-62/libpng16 above.
+    // there is no unversioned libtiff.dll on windows to fall back to.
+    "libtiff-6.dll",
     "libvips-42.dll",
     "libwebp.dll",
     "libwebpdecoder.dll",
