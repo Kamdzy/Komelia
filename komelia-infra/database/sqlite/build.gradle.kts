@@ -1,6 +1,3 @@
-@file:OptIn(ExperimentalKotlinGradlePluginApi::class)
-
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -8,6 +5,7 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 group = "io.github.snd_r.komelia.db.sqlite"
@@ -39,17 +37,15 @@ kotlin {
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.resources)
-            implementation(libs.filekit.core)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.filekit.core)
             implementation(libs.exposed.core)
             implementation(libs.exposed.jdbc)
             implementation(libs.exposed.json)
             implementation(libs.exposed.kotlin.datetime)
             implementation(libs.hikariCP)
             implementation(libs.flyway.core)
-            // upstream swapped this for a local files("sqlite-jdbc-3.51.3.0-linux.jar")
-            // that is not committed, which leaves org.sqlite off the compile classpath
-            // anywhere but their machine
             implementation(libs.sqlite.xerial.jdbc)
         }
     }

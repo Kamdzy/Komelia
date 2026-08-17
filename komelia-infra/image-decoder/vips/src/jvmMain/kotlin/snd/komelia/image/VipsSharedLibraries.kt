@@ -72,7 +72,7 @@ object VipsSharedLibraries {
         "libgmodule-2.0-0",
         "libgobject-2.0-0",
         "libgio-2.0-0",
-        "liblcms2-2",
+        "liblcms2",
         "libexif-12",
         "libde265",
         "libdav1d",
@@ -91,7 +91,6 @@ object VipsSharedLibraries {
         "libjxl_threads",
         "libjxl",
         "libpng16",
-        // windows ships the soname-suffixed libtiff-6.dll, there is no unversioned alias
         "libtiff-6",
         "libheif",
         windowsBundledLibVipsName,

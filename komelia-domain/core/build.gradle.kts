@@ -23,9 +23,9 @@ kotlin {
     jvm { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        outputModuleName = "komelia-webview"
         browser()
     }
+    compilerOptions.freeCompilerArgs.add("-Xexpect-actual-classes")
 
     sourceSets {
         all {
@@ -33,6 +33,7 @@ kotlin {
             languageSettings.optIn("kotlin.ExperimentalUnsignedTypes")
             languageSettings.optIn("kotlin.time.ExperimentalTime")
             languageSettings.optIn("kotlin.uuid.ExperimentalUuidApi")
+            languageSettings.optIn("kotlin.js.ExperimentalWasmJsInterop")
         }
         commonMain.dependencies {
             api(projects.komeliaDomain.komgaApi)
