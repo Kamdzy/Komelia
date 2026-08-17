@@ -149,7 +149,7 @@ jobs:
             android-x86_copyJniLibs
 
       - name: Build epub reader WebUI
-        run: ./gradlew --no-daemon buildWebui
+        run: ./gradlew --no-daemon buildEpubReaders
 
       - name: Assemble release APK
         # Signing is optional: set the four ANDROID_* secrets in repo settings
@@ -252,7 +252,7 @@ jobs:
         run: ./gradlew --no-daemon linux-x86_64_copyJniLibs
 
       - name: Build epub reader WebUI
-        run: ./gradlew --no-daemon buildWebui
+        run: ./gradlew --no-daemon buildEpubReaders
 
       - name: Package deb and uber-jar
         run: |
@@ -399,7 +399,7 @@ jobs:
             windows-x86_64_copyJniLibsComposeResources
 
       - name: Build epub reader WebUI
-        run: ./gradlew --no-daemon buildWebui
+        run: ./gradlew --no-daemon buildEpubReaders
 
       - name: Package MSI
         run: ./gradlew --no-daemon :komelia-app:desktopApp:packageReleaseMsi
